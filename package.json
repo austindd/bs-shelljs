@@ -1,0 +1,34 @@
+{
+  "name": "bs-shelljs",
+  "version": "0.0.1",
+  "description": "BuckleScript type bindings to ShellJs, a Node library which provides portable Unix shell API's to multiple OS platforms (Windows/Linux/Mac OS).",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/austindd/bs-shelljs.git"
+  },
+  "keywords": [
+    "reason",
+    "reasonml",
+    "ocaml",
+    "node",
+    "nodejs",
+    "node.js",
+    "shelljs",
+    "shell",
+    "unix",
+    "command"
+  ],
+  "author": "austindd",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/austindd/bs-shelljs/issues"
+  },
+  "homepage": "https://github.com/austindd/bs-shelljs#readme",
+  "dependencies": {
+    "bs-platform": "^7.1.1"
+  }
+}

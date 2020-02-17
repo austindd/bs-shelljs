@@ -27,3 +27,9 @@ setup.log
 
 # Local OPAM switch
 _opam/
+
+.vscode
+/node_modules/
+*.bs.js
+*.js
+/bsb
