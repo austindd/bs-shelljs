@@ -4,6 +4,9 @@
   "description": "BuckleScript type bindings to ShellJs, a Node library which provides portable Unix shell API's to multiple OS platforms (Windows/Linux/Mac OS).",
   "main": "index.js",
   "scripts": {
+    "clean": "npx bsb -clean-world",
+    "build": "npx bsb -make-world",
+    "start": "npx bsb -w",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -29,6 +32,7 @@
   },
   "homepage": "https://github.com/austindd/bs-shelljs#readme",
   "dependencies": {
-    "bs-platform": "^7.1.1"
+    "bs-platform": "^7.1.1",
+    "shelljs": "^0.8.3"
   }
 }
