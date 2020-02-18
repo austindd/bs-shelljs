@@ -30,7 +30,9 @@ _opam/
 
 .vscode
 /node_modules/
+*.bsb.lock
 *.bs.js
 *.js
 /bsb
 lib/
+*test-dir/
