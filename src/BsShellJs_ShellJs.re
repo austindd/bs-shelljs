@@ -1,9 +1,29 @@
 type shellString('a);
-type result;
+type exit = [ `Exit ];
+type array_ = [ `Array ];
+type string_ = [ `String ];
+
+[%%bs.raw {|
+  function __isShellString__(obj) {
+    if (
+      obj
+      && obj.cat
+      && obj.exec
+      && obj.grep
+      && obj.sed
+      && obj.uniq
+    ) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+|}];
 
 module Pipe = {
 
   [@bs.send.pipe: shellString('a)] external toEnd: string => shellString('a) = "toEnd";
+
   [@bs.send.pipe: shellString('a)] external to_: string => shellString('a) = "to";
   [@bs.send.pipe: shellString('a)] external grep:
     (
@@ -29,90 +49,160 @@ module Pipe = {
 
 module ShellString = {
   type t('a) = shellString('a);
-  type nonrec result = result;
+  type nonrec exit = exit;
 
   include Pipe;
 
-  [@bs.module "shelljs"] [@bs.new] external fromString: string => t(string) = "ShellString";
-  [@bs.send] external toString: t(string) => string = "toString";
+  [@bs.get] external code: t('a) => Js.Null_undefined.t(int) = "code";
+  let code: t('a) => int = (shellString) =>
+    Js.Null_undefined.toOption(code(shellString)) |> fun
+      | None => 0
+      | Some(code_) => code_;
 
-  [@bs.module "shelljs"] [@bs.new] external fromArray: array(string) => t(array(string)) = "ShellString";
+  [@bs.get] external stdout: t('a) => Js.Null_undefined.t(string) = "stdout";
+  let stdout: t('a) => string = (shellString) =>
+    Js.Null_undefined.toOption(stdout(shellString)) |> fun
+      | None => ""
+      | Some(out) => out;
+
+  [@bs.get] external stderr: t('a) => Js.Null_undefined.t(string) = "stderr";
+  let stderr: t('a) => string = (shellString) =>
+    Js.Null_undefined.toOption(stderr(shellString)) |> fun
+      | None => ""
+      | Some(err) => err;
+
+  module Unsafe = {
+    [@bs.set] external setStdout: (t('a), string) => unit = "stdout";
+    [@bs.set] external setStderr: (t('a), string) => unit = "stderr";
+    [@bs.set] external setCode: (t('a), int) => unit = "code";
+
+    external castToShellString_string: string => shellString(string) = "%identity";
+    external castToShellString_array: array(string) => shellString(array(string)) = "%identity";
+    external castToShellString_exit: 'a => shellString(exit) = "%identity";
+    external castToString: shellString(string) => string = "%identity";
+    external castToArray: shellString(array(string)) => array(string) = "%identity";
+
+  };
+
+  [@bs.val] external isShellString: (. 'a) => bool = "__isShellString__";
+
+  [@bs.send] external toString: t(string) => string = "toString";
+  [@bs.module "shelljs"] [@bs.new] external fromString: string => t(string) = "ShellString";
+  let fromString = (str) => {
+    open Unsafe;
+    let ret = fromString(str);
+    setCode(ret, 0);
+    setStderr(ret, "");
+    ret;
+  };
+
   [@bs.val] [@bs.scope ("Array", "prototype", "slice")] external toArray: t(array(string)) => array(string) = "call";
+  [@bs.module "shelljs"] [@bs.new] external fromArray: array(string) => t(array(string)) = "ShellString";
+  let fromArray = (str) => {
+    open Unsafe;
+    let ret = fromArray(str);
+    setCode(ret, 0);
+    setStderr(ret, "");
+    ret;
+  };
 
   let fromList: list(string) => t(array(string)) = (lst) => Belt.List.toArray(lst) -> fromArray;
   let toList: t(array(string)) => list(string) = (shellString) => toArray(shellString) -> Belt.List.fromArray;
 
-  [@bs.get] external code: t('a) => int = "code";
-  [@bs.get] external stdout: t('a) => string = "stdout";
-  [@bs.get] external stderr: t('a) => string = "stderr";
+  let toResult: t('a) => Belt.Result.t(t('a), t('a)) = (shellString) =>
+    switch (code(shellString)) {
+      | 0 => Ok(shellString);
+      | _ => Error(shellString);
+    };
+
+  // fromString("test test test") -> Js.log;
+  // fromString2("test test test") -> Js.log;
 
 };
 
-[@bs.module "shelljs"] external cat: string => shellString('a) = "cat";
-[@bs.module "shelljs"] external catMany: array(string) => shellString('a) = "cat";
+[@bs.module "shelljs"] external cat_noOptions: string => shellString(string) = "cat";
+[@bs.module "shelljs"] external cat_options: Js.t({..}) => string => shellString(string) = "cat";
 
-[@bs.module "shelljs"] external catWith_obj_n: {. "-n": int } => string => shellString('a) = "cat";
-[@bs.module "shelljs"] external catManyWith_obj_n: {. "-n": int } => array(string) => shellString('a) = "cat";
+[@bs.module "shelljs"] external catMany_noOptions: array(string) => shellString(string) = "cat";
+[@bs.module "shelljs"] external catMany_options: Js.t({..}) => array(string) => shellString(string) = "cat";
 
-[@bs.module "shelljs"] external cd: (~path: string=?, unit) => shellString(string) = "cd";
+[@bs.module "shelljs"] external cd: unit => shellString(exit) = "cd";
+[@bs.module "shelljs"] external cdPath: string => shellString(exit) = "cd";
 
-[@bs.module "shelljs"] external chmod: (~mode: string, ~path: string) => shellString(string) = "chmod";
-[@bs.module "shelljs"] external chmodWith:
-  (
-    [@bs.string] [
-      | [@bs.as "-v"] `v
-      | [@bs.as "-c"] `c
-      | [@bs.as "-R"] `R
-    ],
-    ~mode: string,
-    ~path: string
-  ) => shellString(string) = "chmod";
+[@bs.module "shelljs"] external chmod_noOptions: (~mode: string, ~path: string) => shellString(exit) = "chmod";
+[@bs.module "shelljs"] external chmod_options: (Js.t({..}), ~mode: string, ~path: string) => shellString(exit) = "chmod";
 
-[@bs.module "shelljs"] external cp: (~source: string, ~dest: string) => shellString(string) = "cp";
+[@bs.module "shelljs"] external cp_noOptions: (~source: string, ~dest: string) => shellString(exit) = "cp";
+[@bs.module "shelljs"] external cp_options: (Js.t({..}), ~source: string, ~dest: string) => shellString(exit) = "cp";
 
-let testCp = cp(~source="./test-dir/test1.txt", ~dest="./test-dir/test4.txt");
-Js.log(testCp);
+[@bs.module "shelljs"] external pushd_noOptions: unit => shellString(array(string)) = "pushd";
+[@bs.module "shelljs"] external pushd_options: Js.t({..}) => shellString(array(string)) = "pushd";
 
-let testCp = cp(~source="./test-dir/test5.txt", ~dest="./test-dir/test4.txt");
-Js.log(testCp);
+[@bs.module "shelljs"] external pushdPath_noOptions: string => shellString(array(string)) = "pushd";
+[@bs.module "shelljs"] external pushdPath_options: (Js.t({..}), string) => shellString(array(string)) = "pushd";
 
-[@bs.module "shelljs"] external ln: (~source: string, ~dest: string) => shellString(string) = "ln";
-[@bs.module "shelljs"] external lnWith:
-  (
-    [@bs.string] [
-      | [@bs.as "-s"] `s
-      | [@bs.as "-f"] `f
-      | [@bs.as "-sf"] `sf
-    ],
-    ~source: string,
-    ~dest: string,
-  ) => shellString(string) = "ln";
+[@bs.module "shelljs"] external popd_noOptions: unit => shellString(array(string)) = "popd";
+[@bs.module "shelljs"] external popd_options: Js.t({..}) => shellString(array(string)) = "popd";
+[@bs.module "shelljs"] external popdN_noOptions: string => shellString(array(string)) = "popd";
+[@bs.module "shelljs"] external popdN_options: (Js.t({..}), string) => shellString(array(string)) = "popd";
 
-[@bs.module "shelljs"] external ls: unit => shellString(array(string)) = "ls";
-[@bs.module "shelljs"] external lsWith: (
-  ~options: [@bs.string] [
-    | [@bs.as "-R"] `R
-    | [@bs.as "-A"] `A
-    | [@bs.as "-L"] `L
-    | [@bs.as "-D"] `d
-    | [@bs.as "-l"] `l
-  ],
-) => shellString(string) = "ls";
+[@bs.module "shelljs"] external dirs_noOptions: unit => array(string) = "dirs";
+let dirs_noOptions = () => {
+  open ShellString;
+  let res = dirs_noOptions();
+  switch (isShellString(. res)) {
+    | true => Unsafe.castToShellString_array(res);
+    | false => fromArray(res);
+  };
+};
 
-[@bs.module "shelljs"] external lsPath: string => shellString(array(string)) = "ls";
-[@bs.module "shelljs"] external lsPathWith: (
-  ~options: [@bs.string] [
-    | [@bs.as "-R"] `R
-    | [@bs.as "-A"] `A
-    | [@bs.as "-L"] `L
-    | [@bs.as "-D"] `d
-    | [@bs.as "-l"] `l
-  ],
-  string,
-) => shellString(string) = "ls";
+[@bs.module "shelljs"] external dirs_options: Js.t({..}) => array(string) = "dirs";
+let dirs_options = (options) => {
+  open ShellString;
+  let res = dirs_options(options);
+  switch (isShellString(. res)) {
+    | true => Unsafe.castToShellString_array(res);
+    | false => fromArray(res);
+  };
+};
 
-[@bs.module "shelljs"] external head: string => shellString(string) = "head";
-[@bs.module "shelljs"] external headWith_obj_n: {. "-n": int } => string => shellString(string) = "head";
+[@bs.module "shelljs"] external dirsN_noOptions: string => string = "dirs";
+let dirsN_noOptions = (arg) => {
+  open ShellString;
+  let res = dirsN_noOptions(arg);
+  switch (isShellString(. res)) {
+    | true => Unsafe.castToShellString_string(res);
+    | false => fromString(res);
+  };
+};
+
+[@bs.module "shelljs"] external dirsN_options: Js.t({..}) => string => string = "dirs";
+let dirsN_options = (options, arg) => {
+  open ShellString;
+  let res = dirsN_options(options, arg);
+  switch (isShellString(. res)) {
+    | true => Unsafe.castToShellString_string(res);
+    | false => fromString(res);
+  };
+};
+
+// pushdPath_noOptions("../") -> Js.log;
+Js.log("\n");
+dirs_noOptions() -> ShellString.toArray -> Js.log;
+Js.log("\n");
+dirsN_noOptions("-1") -> Js.log;
+
+[@bs.module "shelljs"] external ln_noOptions: (~source: string, ~dest: string) => shellString(string) = "ln";
+[@bs.module "shelljs"] external ln_options: (Js.t({..}), ~source: string, ~dest: string) => shellString(string) = "ln";
+
+[@bs.module "shelljs"] external ls_noOptions: unit => shellString(array(string)) = "ls";
+[@bs.module "shelljs"] external ls_options: (Js.t({..})) => shellString(string) = "ls";
+
+[@bs.module "shelljs"] external lsPath_noOptions: string => shellString(array(string)) = "ls";
+[@bs.module "shelljs"] external lsPath_options: (Js.t({..}), ~path: string,) => shellString(string) = "ls";
+
+[@bs.module "shelljs"] external head_noOptions: string => shellString(string) = "head";
+[@bs.module "shelljs"] external head_options: (Js.t({..})) => string => shellString(string) = "head";
 
 // lsPath("../../") -> ShellString.toList -> Js.log;
 // lsPath("../../") -> ShellString.toArray -> Js.log;
