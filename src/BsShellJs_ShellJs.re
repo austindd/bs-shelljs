@@ -204,8 +204,8 @@ type execCallback = (~code: int, ~stdout: string, ~stderr: string) => unit;
 [@bs.module "shelljs"] external exec_noOptions: string => shellString(exit) = "exec";
 [@bs.module "shelljs"] external exec_options: (string, Js.t({..})) => shellString(exit) = "exec";
 
-[@bs.module "shelljs"] external exec_noOptions_callback: string => execCallback => unit = "exec";
-[@bs.module "shelljs"] external exec_options_callback: (string, Js.t({..})) => execCallback => unit = "exec";
+[@bs.module "shelljs"] external execCallback_noOptions: string => execCallback => unit = "exec";
+[@bs.module "shelljs"] external execCallback_options: (string, Js.t({..})) => execCallback => unit = "exec";
 
 [@bs.module "shelljs"] external find: string => shellString(array(string)) = "find";
 [@bs.module "shelljs"] external findMany: array(string) => shellString(array(string)) = "find";
