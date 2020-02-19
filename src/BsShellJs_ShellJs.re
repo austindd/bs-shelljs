@@ -53,6 +53,19 @@ module ShellString = {
 
   include Pipe;
 
+  /**
+   * Internally, these values can be null or undefined sometimes, usually
+   * as some kind of "default" case before setting them based on command return
+   * values. Here, we make some assumptions about what constitutes a "default"
+   * value so we can have a monomorphic type.
+   */
+
+  /**
+   * The exit code is always set to an integer by ShellJs after executing
+   * a command. It can be null or undefined for a ShellString created via
+   * the `new` operator. Thus, the case we are covering is initialization, and
+   * `0` usually represents "success", so `0` should be a safe default value.
+   */
   [@bs.get] external code: t('a) => Js.Null_undefined.t(int) = "code";
   let code: t('a) => int = (shellString) =>
     Js.Null_undefined.toOption(code(shellString)) |> fun
@@ -114,9 +127,6 @@ module ShellString = {
       | 0 => Ok(shellString);
       | _ => Error(shellString);
     };
-
-  // fromString("test test test") -> Js.log;
-  // fromString2("test test test") -> Js.log;
 
 };
 
@@ -186,23 +196,44 @@ let dirsN_options = (options, arg) => {
   };
 };
 
-// pushdPath_noOptions("../") -> Js.log;
-Js.log("\n");
-dirs_noOptions() -> ShellString.toArray -> Js.log;
-Js.log("\n");
-dirsN_noOptions("-1") -> Js.log;
+[@bs.module "shelljs"] external echo_noOptions: string => shellString(string) = "echo";
+[@bs.module "shelljs"] external echo_options: Js.t({..}) =>string => shellString(string) = "echo";
+
+type execCallback = (~code: int, ~stdout: string, ~stderr: string) => unit;
+
+[@bs.module "shelljs"] external exec_noOptions: string => shellString(exit) = "exec";
+[@bs.module "shelljs"] external exec_options: (string, Js.t({..})) => shellString(exit) = "exec";
+
+[@bs.module "shelljs"] external exec_noOptions_callback: string => execCallback => unit = "exec";
+[@bs.module "shelljs"] external exec_options_callback: (string, Js.t({..})) => execCallback => unit = "exec";
+
+[@bs.module "shelljs"] external find: string => shellString(array(string)) = "find";
+[@bs.module "shelljs"] external findMany: array(string) => shellString(array(string)) = "find";
+
+[@bs.module "shelljs"] external grepString_noOptions: (string, ~path: string) => shellString(string) = "grep";
+[@bs.module "shelljs"] external grepString_options: (Js.t({..}), string, ~path: string) => shellString(string) = "grep";
+
+[@bs.module "shelljs"] external grepRegex_noOptions: (Js.Re.t, ~path: string) => shellString(string) = "grep";
+[@bs.module "shelljs"] external grepRegex_options: (Js.t({..}), Js.Re.t, ~path: string) => shellString(string) = "grep";
+
+[@bs.module "shelljs"] external grepStringMany_noOptions: (string, ~path: string) => shellString(string) = "grep";
+[@bs.module "shelljs"] external grepStringMany_options: (Js.t({..}), string, ~path: string) => shellString(string) = "grep";
+
+[@bs.module "shelljs"] external grepRegexMany_noOptions: (Js.Re.t, ~path: string) => shellString(string) = "grep";
+[@bs.module "shelljs"] external grepRegexMany_options: (Js.t({..}), Js.Re.t, ~path: string) => shellString(string) = "grep";
+
+[@bs.module "shelljs"] external head_noOptions: string => shellString(string) = "head";
+[@bs.module "shelljs"] external head_options: (Js.t({..})) => string => shellString(string) = "head";
 
 [@bs.module "shelljs"] external ln_noOptions: (~source: string, ~dest: string) => shellString(string) = "ln";
 [@bs.module "shelljs"] external ln_options: (Js.t({..}), ~source: string, ~dest: string) => shellString(string) = "ln";
 
 [@bs.module "shelljs"] external ls_noOptions: unit => shellString(array(string)) = "ls";
-[@bs.module "shelljs"] external ls_options: (Js.t({..})) => shellString(string) = "ls";
+[@bs.module "shelljs"] external ls_options: (Js.t({..})) => shellString(array(string)) = "ls";
 
 [@bs.module "shelljs"] external lsPath_noOptions: string => shellString(array(string)) = "ls";
-[@bs.module "shelljs"] external lsPath_options: (Js.t({..}), ~path: string,) => shellString(string) = "ls";
+[@bs.module "shelljs"] external lsPath_options: (Js.t({..}), ~path: string,) => shellString(array(string)) = "ls";
 
-[@bs.module "shelljs"] external head_noOptions: string => shellString(string) = "head";
-[@bs.module "shelljs"] external head_options: (Js.t({..})) => string => shellString(string) = "head";
 
 // lsPath("../../") -> ShellString.toList -> Js.log;
 // lsPath("../../") -> ShellString.toArray -> Js.log;
